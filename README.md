@@ -50,9 +50,9 @@ See `docker-compose.yaml` for complete list of configurable options.
 
 ## 📂 Volumes
 
-- `./rootfs/data/cachet` - Data storage
-- `./rootfs/config/cachet` - Data storage
-- `./rootfs/data/db/postgres/cachet` - Data storage
+- `./volumes/data/cachet` - Data storage
+- `./volumes/config/cachet` - Data storage
+- `./volumes/data/db/postgres/cachet` - Data storage
 
 ## 🔐 Security
 
