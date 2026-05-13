@@ -1,5 +1,6 @@
 # nginx proxy address - http://172.17.0.1:8100
 
+name: cachet
 x-logging: &default-logging
   driver: json-file
   options:
@@ -7,32 +8,53 @@ x-logging: &default-logging
     max-file: "1"
 
 services:
-  cachet:
-    image: cachet/cachet:latest
+  app:
+    image: ghcr.io/cachethq/cachet:latest
+    pull_policy: always
     container_name: cachet-app
-    restart: unless-stopped
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
     logging: *default-logging
     networks:
       - cachet
     ports:
-      - "8100:8100"
+      - "172.17.0.1:8100:8000"
     environment:
       TZ: ${TZ:-America/New_York}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: http://${BASE_HOST_NAME:-localhost}
+      APP_KEY: ${APP_SECRET_KEY:-changeme_secret_key_min_32_chars}
+      DB_DRIVER: pgsql
+      DB_HOST: cachet-db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_CREATE_DATABASE_NAME:-cachet}
+      DB_USERNAME: ${DB_USER_NAME:-cachet}
+      DB_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
+      MAIL_DRIVER: smtp
+      MAIL_HOST: ${EMAIL_SERVER_HOST:-172.17.0.1}
+      MAIL_PORT: ${EMAIL_SERVER_PORT:-587}
+      MAIL_USERNAME: ${EMAIL_SERVER_USER:-}
+      MAIL_PASSWORD: ${EMAIL_SERVER_PASS:-}
+      MAIL_FROM_ADDRESS: ${EMAIL_SERVER_MAIL_FROM:-cachet@example.com}
     volumes:
       - ./volumes/data/cachet:/data
       - ./volumes/config/cachet:/config
     depends_on:
-      - cachet-db
+      cachet-db:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   cachet-db:
-    image: postgres:16-alpine
+    image: postgres:latest
+    pull_policy: always
     container_name: cachet-db
-    restart: unless-stopped
+    hostname: cachet-db
+    restart: always
     logging: *default-logging
     networks:
       - cachet
@@ -44,11 +66,12 @@ services:
     volumes:
       - ./volumes/data/db/postgres/cachet:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${{POSTGRES_USER}} -d $${{POSTGRES_DB}}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 30s
       timeout: 10s
       retries: 3
 
 networks:
   cachet:
+    name: cachet
     external: false
