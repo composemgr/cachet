@@ -1,0 +1,95 @@
+# nginx proxy address - http://172.17.0.1:64128
+
+name: cachet
+x-logging: &default-logging
+  options:
+    max-size: '5m'
+    max-file: '1'
+  driver: json-file
+
+services:
+  app:
+    image: ghcr.io/cachethq/cachet:latest
+    container_name: cachet-app
+    domainname: ${BASE_DOMAIN_NAME:-example.com}
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: cachet-app
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: https://${BASE_HOST_NAME:-$HOSTNAME}
+      APP_KEY: ${APP_SECRET_KEY:-replace-with-a-random-32-byte-hex-string}
+      DB_DRIVER: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_CREATE_DATABASE_NAME:-cachet}
+      DB_USERNAME: ${DB_USER_NAME:-cachet}
+      DB_PASSWORD: ${DB_USER_PASS:-replace-with-a-random-password}
+      MAIL_DRIVER: smtp
+      MAIL_HOST: ${EMAIL_SERVER_HOST:-172.17.0.1}
+      MAIL_PORT: ${EMAIL_SERVER_PORT:-587}
+      MAIL_USERNAME: ${EMAIL_SERVER_LOGIN_NAME:-}
+      MAIL_PASSWORD: ${EMAIL_SERVER_LOGIN_PASS:-}
+      MAIL_FROM_ADDRESS: ${EMAIL_SERVER_MAIL_FROM:-noreply@example.com}
+    volumes:
+      - './volumes/data/cachet:/data:z'
+      - './volumes/config/cachet:/config:z'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=traefik'
+      - 'traefik.http.routers.cachet-app.entrypoints=http'
+      - 'traefik.http.routers.cachet-app.rule=Host(`${BASE_HOST_NAME:-$HOSTNAME}`)'
+      - 'traefik.http.routers.cachet-app.middlewares=cachet-app-https-redirect'
+      - 'traefik.http.middlewares.cachet-app-https-redirect.redirectscheme.scheme=https'
+      - 'traefik.http.routers.cachet-app-secure.entrypoints=https'
+      - 'traefik.http.routers.cachet-app-secure.rule=Host(`${BASE_HOST_NAME:-$HOSTNAME}`)'
+      - 'traefik.http.routers.cachet-app-secure.tls.certresolver=cloudflare'
+      - 'traefik.http.routers.cachet-app-secure.service=cachet-app'
+      - 'traefik.http.services.cachet-app.loadbalancer.server.port=8000'
+    networks:
+      - cachet
+      - traefik
+
+  db:
+    image: postgres:latest
+    container_name: cachet-db
+    domainname: ${BASE_DOMAIN_NAME:-example.com}
+    hostname: cachet-db
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: cachet-db
+      POSTGRES_DB: ${DB_CREATE_DATABASE_NAME:-cachet}
+      POSTGRES_USER: ${DB_USER_NAME:-cachet}
+      POSTGRES_PASSWORD: ${DB_USER_PASS:-replace-with-a-random-password}
+    volumes:
+      - './volumes/db/postgres/cachet:/var/lib/postgresql/data:z'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cachet
+
+networks:
+  cachet:
+    name: cachet
+    external: false
+  traefik:
+    external: true
