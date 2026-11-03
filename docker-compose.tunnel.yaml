@@ -9,7 +9,7 @@ x-logging: &default-logging
 
 services:
   app:
-    image: ghcr.io/cachethq/cachet:latest
+    image: cachethq/docker:latest
     container_name: cachet-app
     domainname: ${BASE_DOMAIN_NAME:-example.com}
     hostname: ${BASE_HOST_NAME:-$HOSTNAME}
@@ -36,14 +36,11 @@ services:
       MAIL_USERNAME: ${EMAIL_SERVER_LOGIN_NAME:-}
       MAIL_PASSWORD: ${EMAIL_SERVER_LOGIN_PASS:-}
       MAIL_FROM_ADDRESS: ${EMAIL_SERVER_MAIL_FROM:-noreply@example.com}
-    volumes:
-      - './volumes/data/cachet:/data:z'
-      - './volumes/config/cachet:/config:z'
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000']
+      test: ['CMD', 'curl', '-s', '-o', '/dev/null', 'http://127.0.0.1:8000/']
       interval: 30s
       timeout: 10s
       retries: 3

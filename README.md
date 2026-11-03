@@ -12,7 +12,9 @@ configuration under `./volumes/config/cachet`, and publishes only the web UI.
 
 ## 🚀 Services
 
-- **app**: ghcr.io/cachethq/cachet:latest
+Note: Cachet 3.x publishes no container image. This stack uses `cachethq/docker`, the last published image (Cachet 2.x), which is no longer updated upstream; plan a move to a 3.x build when an image is released.
+
+- **app**: cachethq/docker:latest
 
 ### Infrastructure Components
 
